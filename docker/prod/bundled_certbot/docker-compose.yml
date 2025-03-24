@@ -141,21 +141,23 @@ services:
     networks:
       - seb-server-network
     restart: unless-stopped
-    
+ 
   reverse-proxy:
     image: "nginx:latest"
     container_name: seb-server-proxy
     volumes:
       - ./config/nginx:/etc/nginx/conf.d
-      - ./config/nginx/certs:/sebserver/config/certs
+      - ./config/nginx/certs:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+      - ./entrypoint.sh:/entrypoint.sh
+    environment:
+      - DNS_NAME=${DNS_NAME}
     ports:
       - 80:80  # Needed for Certbot HTTP-01 challenge
       - 443:443
     networks:
       - seb-server-network
-    depends_on:
-      - "mariadb"
-      - "seb-server"
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     restart: unless-stopped
 
   certbot:
@@ -166,9 +168,14 @@ services:
     volumes:
       - ./config/nginx/certs:/etc/letsencrypt  # Certs are stored here
       - ./config/nginx:/etc/nginx/conf.d  # Nginx config for webroot validation
+      - certbot-webroot:/var/www/certbot
     depends_on:
       - reverse-proxy
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew --quiet; done'"
+    entrypoint: >
+      /bin/sh -c 'trap exit TERM;
+      while :; do sleep 12h & wait $${!};
+      certbot renew --webroot -w /var/www/certbot --quiet;
+      done'
 
 networks:
   seb-server-network:

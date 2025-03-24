@@ -1,6 +1,10 @@
 ssl_session_cache   shared:SSL:10m;
 ssl_session_timeout 10m;
 
+location ^~ /.well-known/acme-challenge/ {
+    root /var/www/certbot;
+}
+
 server {
     listen              443 ssl;
     server_name         ${DNS_NAME};
